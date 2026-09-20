@@ -6,18 +6,17 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const TOOL_DOC = TOOLS.map((t: any) => `- ${t.function.name}: ${t.function.description}`).join("\n");
-const SYSTEM = `You are OpsAgent, an SRE assistant that investigates infrastructure incidents using tools.
-To call a tool, reply with ONLY a JSON object and nothing else, e.g. {"tool":"get_latency","service":"auth-service"}
-(list_services needs no service: {"tool":"list_services"}). Call one tool per reply.
-Available tools:
+const SYSTEM = `You are OpsAgent, a friendly assistant that diagnoses website and internet-service problems using LIVE tools.
+For greetings or general questions, reply normally in plain text with NO tool call, and briefly say what you can do (check if a site is up or slow, DNS lookups, Cloudflare status).
+To call a tool, reply with ONLY a JSON object and nothing else, e.g. {"tool":"probe_url","url":"https://github.com"} or {"tool":"dns_lookup","domain":"github.com","type":"A"} or {"tool":"check_cloudflare_status"}.
+One tool per reply, at most 3 tool calls per question.
+Tools:
 ${TOOL_DOC}
-Tools check_cloudflare_status, probe_watchlist and probe_url return LIVE data. The other tools return SIMULATED data for demo internal services (api-gateway, auth-service, postgres-primary, raft-kv).
-RULES: Answer ONLY what the user asked. For questions about Cloudflare or a public website/URL, use ONLY the live tools (check_cloudflare_status, probe_url) and never mention the demo services. Use the simulated tools only if the user asks about those demo services, asks generally what is unhealthy, or asks for an incident investigation, and then label them "simulated". For simple questions use at most 2 tool calls.
-For an incident investigation, gather evidence (health, errors, latency, deploys) and check dependencies of failing services.
-When you have enough evidence, reply in plain text (no JSON): 1) what is wrong, 2) likely root cause with evidence, 3) next steps. Never invent data.`;
+Base conclusions only on tool results and never invent data. If you need a site or domain and the user did not give one, ask.
+Final answers: short, say what you found, the likely cause, and next steps.`;
 
 // A tool call is a small JSON object in the model's reply, e.g. {"tool":"get_latency","service":"x"}
-function parseCall(text: string): { tool: string; service?: string; url?: string } | null {
+function parseCall(text: string): Record<string, any> | null {
   const m = text.match(/\{[^{}]*\}/);
   if (!m) return null;
   try {
@@ -55,20 +54,21 @@ export class OpsAgent extends DurableObject<Env> {
 
   private async investigate(history: Msg[]) {
     const checked = (await this.ctx.storage.get<string[]>("checked")) ?? [];
-    const memory = checked.length ? `\nServices already investigated this session: ${checked.join(", ")}.` : "";
+    const memory = checked.length ? `\nTargets already checked this session: ${checked.join(", ")}.` : "";
     const msgs: any[] = [{ role: "system", content: SYSTEM + memory }, ...history];
     const trace: string[] = [];
 
-    for (let step = 0; step < 8; step++) {
+    for (let step = 0; step < 5; step++) {
       const res: any = await this.env.AI.run(MODEL as any, { messages: msgs, max_tokens: 700 } as any);
       const raw = res.response;
       const text = typeof raw === "string" ? raw : JSON.stringify(raw ?? "");
       const call = parseCall(text);
       if (!call) return { reply: text || "(no response)", trace, checked };
 
-      const result = await TOOL_IMPL[call.tool]({ service: call.service, url: call.url });
-      if (call.service && !checked.includes(call.service)) checked.push(call.service);
-      trace.push(`${call.tool}(${call.service ?? call.url ?? ""})`);
+      const result = await TOOL_IMPL[call.tool](call);
+      const target = call.url ?? call.domain;
+      if (target && !checked.includes(target)) checked.push(target);
+      trace.push(`${call.tool}(${call.url ?? call.domain ?? ""})`);
       msgs.push({ role: "assistant", content: text });
       msgs.push({ role: "user", content: `TOOL RESULT for ${call.tool}: ${JSON.stringify(result)}\nCall another tool, or give your final answer in plain text.` });
     }

@@ -2,9 +2,9 @@
 
 A chat agent that helps investigate infrastructure problems, built on Cloudflare Workers AI and Durable Objects.
 
-**Live demo:** https://opsagent.tanaybaviskar.workers.dev
+**Live demo:** [<PASTE YOUR workers.dev LINK HERE>](https://opsagent.tanaybaviskar.workers.dev)
 
-
+<img width="995" height="763" alt="image" src="https://github.com/user-attachments/assets/57ce34eb-3f67-4df8-b581-7b28a01b761f" />
 
 ## How it maps to the assignment
 
@@ -24,23 +24,19 @@ Browser -> Worker (routes by session id) -> Durable Object (memory + agent loop)
 - `src/tools.ts`: tool definitions and implementations
 - `src/ui.ts`: chat UI
 
-## Tools
-
-**Live** (real requests at question time):
+## Tools (all live; no mock data)
 - `check_cloudflare_status`: Cloudflare's public status API
-- `probe_watchlist`: HTTP requests to a watchlist of public endpoints (status code and latency, measured from the Worker's location); one endpoint is an intentionally failing test URL
-- `probe_url`: same for any https URL you ask about
+- `probe_url`: real HTTP request to any site; status, latency (ms), and headers such as server and cf-cache-status
+- `probe_watchlist`: probes a set of popular public sites
+- `dns_lookup`: real DNS lookups via Cloudflare's 1.1.1.1 DNS-over-HTTPS
 
-**Simulated** (hardcoded demo data for internal services: `api-gateway`, `auth-service`, `postgres-primary`, `raft-kv`):
-`list_services`, `check_service_health`, `get_recent_errors`, `get_latency`, `get_recent_deploys`
-
-The agent is instructed to label simulated findings as simulated.
+Latency is measured from the Worker's network location, not from the user's browser.
 
 ## Design notes and limitations
 
 - Tool calls use a prompt-based JSON protocol (the model replies with `{"tool": "...", ...}`) instead of native function calling. My first attempt with native tool calling returned an internal error from Workers AI, so I switched to this simpler approach.
 - The model does not always follow the rules in the system prompt; scoping questions to the right tools is best-effort.
-- The internal-service data is mock data, not real telemetry.
+- Tools cover public internet endpoints only, not private infrastructure.
 - No authentication or rate limiting.
 
 ## Run locally

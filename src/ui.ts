@@ -7,7 +7,7 @@ form{display:flex;gap:8px;margin-top:8px}input{flex:1;padding:10px;border:1px so
 button{padding:10px 14px;border:0;border-radius:6px;background:#f6821f;color:#fff;cursor:pointer}
 </style></head><body><h1>OpsAgent - infra incident assistant</h1>
 <div id="log"></div>
-<form id="f"><input id="i" placeholder="e.g. Why is auth-service slow?" autocomplete="off"><button>Send</button><button type="button" id="r" style="background:#666">Reset</button></form>
+<form id="f"><input id="i" placeholder="e.g. Is github.com up and how fast?" autocomplete="off"><button>Send</button><button type="button" id="r" style="background:#666">Reset</button></form>
 <script>
 const sid=localStorage.sid||(localStorage.sid=crypto.randomUUID());
 const log=document.getElementById('log'),inp=document.getElementById('i');
