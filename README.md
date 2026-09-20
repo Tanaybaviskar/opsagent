@@ -2,7 +2,7 @@
 
 A chat agent that helps investigate infrastructure problems, built on Cloudflare Workers AI and Durable Objects.
 
-**Live demo:** [<PASTE YOUR workers.dev LINK HERE>](https://opsagent.tanaybaviskar.workers.dev)
+**Live demo:** https://opsagent.tanaybaviskar.workers.dev
 
 <img width="995" height="763" alt="image" src="https://github.com/user-attachments/assets/57ce34eb-3f67-4df8-b581-7b28a01b761f" />
 
